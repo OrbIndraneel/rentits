@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User profile rules
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // StudyPods rules
+    match /pods/{podId} {
+      allow read: if request.auth != null;
+      // Allow creation if the creator is in the members list
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.members;
+      // Allow updates if the user is a member of the pod
+      allow update, delete: if request.auth != null && (request.auth.uid in resource.data.members || request.auth.uid in request.resource.data.members);
+    }
+  }
+}

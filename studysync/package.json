@@ -1,0 +1,8 @@
+{
+  "name": "studysync-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
