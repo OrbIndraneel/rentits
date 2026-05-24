@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { queryAntigravity } from './antigravity';
+import { queryAntigravity, chatWithAntigravity } from './antigravity';
 
 const app = express();
 app.use(cors());
@@ -34,6 +34,17 @@ app.post('/api/verify-rentits', (req, res) => {
   };
 
   res.json(receipt);
+});
+
+app.post('/api/chat', async (req, res) => {
+  const { message, topic, history } = req.body;
+  try {
+    const reply = await chatWithAntigravity(message, topic, history);
+    res.json({ success: true, reply });
+  } catch (error) {
+    console.error("Error in chat assistant:", error);
+    res.status(500).json({ error: "Chat Assistant Failed" });
+  }
 });
 
 app.listen(3001, () => console.log("StudySync Server running on port 3001"));

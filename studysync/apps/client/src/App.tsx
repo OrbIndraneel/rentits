@@ -25,6 +25,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { db, auth } from './firebase';
+import logoImg from './assets/logo.png';
 import {
   signInAnonymously,
   onAuthStateChanged,
@@ -118,18 +119,138 @@ interface HomepageProps {
 }
 
 function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
+  // Rotating word state
+  const rotatingWords = ["StudyPods", "AI Roadmaps", "Recall Quizzes", "Device Logs"];
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setWordIndex((prev) => (prev + 1) % rotatingWords.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Stats numerical count-up state
+  const [statsVisible, setStatsVisible] = useState(false);
+  const [stats, setStats] = useState({ pods: 0, accuracy: 0, quizzes: 0, rentals: 0 });
+
+  useEffect(() => {
+    const statsSection = document.getElementById('about');
+    if (!statsSection) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setStatsVisible(true);
+        observer.unobserve(statsSection);
+      }
+    }, { threshold: 0.1 });
+
+    observer.observe(statsSection);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!statsVisible) return;
+
+    const duration = 1200;
+    const stepTime = 30;
+    const steps = duration / stepTime;
+    const targets = { pods: 15, accuracy: 98, quizzes: 200, rentals: 100 };
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+      setStats({
+        pods: Math.min(Math.round(targets.pods * progress), targets.pods),
+        accuracy: Math.min(Math.round(targets.accuracy * progress), targets.accuracy),
+        quizzes: Math.min(Math.round(targets.quizzes * progress), targets.quizzes),
+        rentals: Math.min(Math.round(targets.rentals * progress), targets.rentals)
+      });
+
+      if (currentStep >= steps) {
+        clearInterval(timer);
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [statsVisible]);
+
+  // Scroll reveal observer
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    const revealElements = document.querySelectorAll('.reveal-on-scroll');
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observerRef.current?.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    revealElements.forEach((el) => observerRef.current?.observe(el));
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  // Simulator tabbed state
+  const [activeSimTab, setActiveSimTab] = useState<'algorithms' | 'iot' | 'design'>('algorithms');
+  
+  // Simulated interactive checklists
+  const [algoChecklist, setAlgoChecklist] = useState([
+    { id: 1, text: "Revise bubble & merge sort complexity", checked: true },
+    { id: 2, text: "Implement binary search tree validation", checked: false },
+    { id: 3, text: "Solve two-sum hash map optimization", checked: false }
+  ]);
+  const [iotChecklist, setIotChecklist] = useState([
+    { id: 1, text: "Power on ESP32 Microcontroller board", checked: true },
+    { id: 2, text: "Inspect serial log verification codes", checked: true },
+    { id: 3, text: "ECDSA sign secure hardware lease lease", checked: false }
+  ]);
+  const [designChecklist, setDesignChecklist] = useState([
+    { id: 1, text: "Draft editorial landing page wireframe", checked: true },
+    { id: 2, text: "Establish harmonized cream & teal HSL tokens", checked: true },
+    { id: 3, text: "Verify viewport scrolling overrides", checked: false }
+  ]);
+
+  const getActiveChecklist = () => {
+    if (activeSimTab === 'algorithms') return algoChecklist;
+    if (activeSimTab === 'iot') return iotChecklist;
+    return designChecklist;
+  };
+
+  const toggleChecklistItem = (id: number) => {
+    if (activeSimTab === 'algorithms') {
+      setAlgoChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    } else if (activeSimTab === 'iot') {
+      setIotChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    } else {
+      setDesignChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    }
+  };
+
+  const activeList = getActiveChecklist();
+  const checkedCount = activeList.filter(item => item.checked).length;
+  const progressPercent = Math.round((checkedCount / activeList.length) * 100);
+
   return (
     <div className="landing-container animate-fade-in" id="landing-page">
+      {/* Decorative Parallax Aura Blobs */}
+      <div className="blob-decorator blob-1"></div>
+      <div className="blob-decorator blob-2"></div>
+      <div className="blob-decorator blob-3"></div>
+
       {/* Navigation Bar */}
       <nav className="landing-navbar">
         <div className="landing-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <Cpu size={22} style={{ color: 'var(--accent-coral)' }} />
+          <img src={logoImg} alt="StudySync Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
           <span>StudySync</span>
         </div>
         <div className="landing-nav-links">
           <a href="#features" className="landing-nav-link">Features</a>
+          <a href="#simulator" className="landing-nav-link">Interactive Sim</a>
           <a href="#how-it-works" className="landing-nav-link">How It Works</a>
-          <a href="#about" className="landing-nav-link">About</a>
           <button
             onClick={onGetStarted}
             className="btn btn-secondary"
@@ -143,13 +264,23 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
 
       {/* Hero Section */}
       <header className="landing-hero">
-        <div className="landing-hero-content">
+        <div className="landing-hero-content animate-slide-up">
           <div className="landing-hero-tag">
             <Sparkles size={14} />
             <span>Introducing StudySync 2.0</span>
           </div>
-          <h1 className="landing-hero-title">
-            Your intellectual space for learning and device sharing.
+          <h1 className="landing-hero-title" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', minHeight: '130px' }}>
+            <span>Your intellectual space for</span>
+            <div className="rotating-word-container">
+              {rotatingWords.map((word, i) => (
+                <span
+                  key={word}
+                  className={`rotating-word ${i === wordIndex ? 'active' : i === (wordIndex - 1 + rotatingWords.length) % rotatingWords.length ? 'prev' : ''}`}
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
           </h1>
           <p className="landing-hero-desc">
             StudySync blends collaborative study pods, instant AI-generated roadmap aids, and recall testing with safe, local-mode rental device verification. Keep your study items, summaries, and gadgets in perfect harmony.
@@ -174,7 +305,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
           </div>
         </div>
 
-        <div className="landing-hero-image-wrapper">
+        <div className="landing-hero-image-wrapper animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <img
             src={landingHeroImg}
             alt="StudySync Editorial Illustration"
@@ -184,29 +315,179 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
       </header>
 
       {/* Stats Section */}
-      <section className="landing-stats-section" id="about">
+      <section className="landing-stats-section reveal-on-scroll" id="about">
         <div className="landing-stats-grid">
           <div className="landing-stat-item">
-            <span className="landing-stat-number">15K+</span>
+            <span className="landing-stat-number">{stats.pods}K+</span>
             <span className="landing-stat-label">Active StudyPods</span>
           </div>
           <div className="landing-stat-item">
-            <span className="landing-stat-number">98%</span>
+            <span className="landing-stat-number">{stats.accuracy}%</span>
             <span className="landing-stat-label">AI Accuracy Rating</span>
           </div>
           <div className="landing-stat-item">
-            <span className="landing-stat-number">200K+</span>
+            <span className="landing-stat-number">{stats.quizzes}K+</span>
             <span className="landing-stat-label">Quizzes Completed</span>
           </div>
           <div className="landing-stat-item">
-            <span className="landing-stat-number">100%</span>
+            <span className="landing-stat-number">{stats.rentals}%</span>
             <span className="landing-stat-label">Verified Device Rentals</span>
           </div>
         </div>
       </section>
 
+      {/* Interactive Simulator Section */}
+      <section className="simulator-section reveal-on-scroll" id="simulator">
+        <div className="landing-section-title-box" style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <span className="landing-section-subtitle">Live Interactive Preview</span>
+          <h2 className="landing-section-title">See how StudyPods keep you in sync</h2>
+          <p style={{ maxWidth: '600px', margin: '12px auto 0', color: 'var(--text-secondary)', fontSize: '14.5px', lineHeight: '1.6' }}>
+            Click through the study topics below, complete simulated checklist steps, and experience real-time sync metrics.
+          </p>
+        </div>
+
+        {/* Tab Controls */}
+        <div className="simulator-tabs">
+          <button 
+            className={`simulator-tab-btn ${activeSimTab === 'algorithms' ? 'active' : ''}`}
+            onClick={() => setActiveSimTab('algorithms')}
+          >
+            <BookOpen size={16} /> Algorithms Lab
+          </button>
+          <button 
+            className={`simulator-tab-btn ${activeSimTab === 'iot' ? 'active' : ''}`}
+            onClick={() => setActiveSimTab('iot')}
+          >
+            <Tv size={16} /> IoT Gadget Hub
+          </button>
+          <button 
+            className={`simulator-tab-btn ${activeSimTab === 'design' ? 'active' : ''}`}
+            onClick={() => setActiveSimTab('design')}
+          >
+            <Sparkles size={16} /> UI/UX Design Pod
+          </button>
+        </div>
+
+        {/* Mockup Dashboard Window */}
+        <div className="simulator-window">
+          {/* Mock Sidebar */}
+          <div className="simulator-window-sidebar">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700', color: 'var(--accent-teal)' }}>
+                <img src={logoImg} alt="Logo" style={{ height: '20px', width: '20px', objectFit: 'contain' }} />
+                <span>StudySync Sim</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active StudyPod</span>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-canvas)', borderRadius: '8px', border: '1px solid var(--border-muted)', fontSize: '12.5px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                  {activeSimTab === 'algorithms' ? '📖 Algorithms & Data' : activeSimTab === 'iot' ? '🔌 Smart IoT Gadgets' : '🎨 Editorial UI Design'}
+                </div>
+              </div>
+            </div>
+            
+            {activeSimTab === 'iot' && (
+              <div className="sim-device-verification">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-purple)' }}>RentIts verified</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>ECDSA Signed</span>
+                </div>
+                <div className="sim-pulse-dot"></div>
+              </div>
+            )}
+          </div>
+
+          {/* Mock Main Content Area */}
+          <div className="simulator-window-content">
+            {/* Progress Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>Checklist Progress</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent-coral)' }}>{progressPercent}%</span>
+              </div>
+              <div className="sim-progress-track">
+                <div className="sim-progress-bar" style={{ width: `${progressPercent}%` }}></div>
+              </div>
+            </div>
+
+            {/* Checklist Items */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Task Checklist</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {activeList.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="sim-checklist-item" 
+                    onClick={() => toggleChecklistItem(item.id)}
+                  >
+                    <div className={`sim-checkbox ${item.checked ? 'checked' : ''}`}>
+                      {item.checked && <Check size={12} strokeWidth={3} />}
+                    </div>
+                    <span className={`sim-checklist-text ${item.checked ? 'checked' : ''}`}>
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Roadmap Milestones */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Roadmap Milestones</span>
+              <div className="sim-roadmap-nodes">
+                {activeSimTab === 'algorithms' ? (
+                  <>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 1</span>
+                      <span className="sim-node-title">Sorting Bases</span>
+                    </div>
+                    <div className="sim-roadmap-node active">
+                      <span className="sim-node-num" style={{ color: 'var(--accent-emerald)' }}>Active 2</span>
+                      <span className="sim-node-title">Binary Trees</span>
+                    </div>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 3</span>
+                      <span className="sim-node-title">Graph Traversal</span>
+                    </div>
+                  </>
+                ) : activeSimTab === 'iot' ? (
+                  <>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 1</span>
+                      <span className="sim-node-title">Device Setup</span>
+                    </div>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 2</span>
+                      <span className="sim-node-title">Serial Logins</span>
+                    </div>
+                    <div className="sim-roadmap-node active">
+                      <span className="sim-node-num" style={{ color: 'var(--accent-emerald)' }}>Active 3</span>
+                      <span className="sim-node-title">ECDSA Sign</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 1</span>
+                      <span className="sim-node-title">Wireframing</span>
+                    </div>
+                    <div className="sim-roadmap-node">
+                      <span className="sim-node-num">Milestone 2</span>
+                      <span className="sim-node-title">HSL Palettes</span>
+                    </div>
+                    <div className="sim-roadmap-node active">
+                      <span className="sim-node-num" style={{ color: 'var(--accent-emerald)' }}>Active 3</span>
+                      <span className="sim-node-title">Responsive Fix</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Grid Section */}
-      <section className="landing-features-section" id="features">
+      <section className="landing-features-section reveal-on-scroll" id="features">
         <div className="landing-section-title-box">
           <span className="landing-section-subtitle">Core Capabilities</span>
           <h2 className="landing-section-title">Designed for modern learners</h2>
@@ -214,7 +495,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
 
         <div className="landing-features-grid">
           {/* Card 1 */}
-          <div className="landing-feature-card" onClick={onGetStarted}>
+          <div className="landing-feature-card reveal-on-scroll delay-100" onClick={onGetStarted}>
             <div className="landing-feature-icon-box">
               <BookOpen size={22} />
             </div>
@@ -225,7 +506,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
           </div>
 
           {/* Card 2 */}
-          <div className="landing-feature-card" onClick={onGetStarted}>
+          <div className="landing-feature-card reveal-on-scroll delay-200" onClick={onGetStarted}>
             <div className="landing-feature-icon-box">
               <Sparkles size={22} />
             </div>
@@ -236,7 +517,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
           </div>
 
           {/* Card 3 */}
-          <div className="landing-feature-card" onClick={onGetStarted}>
+          <div className="landing-feature-card reveal-on-scroll delay-300" onClick={onGetStarted}>
             <div className="landing-feature-icon-box">
               <Tv size={22} />
             </div>
@@ -249,14 +530,14 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
       </section>
 
       {/* How It Works Section */}
-      <section className="landing-steps-section" id="how-it-works">
+      <section className="landing-steps-section reveal-on-scroll" id="how-it-works">
         <div className="landing-section-title-box">
           <span className="landing-section-subtitle">Onboarding Flow</span>
           <h2 className="landing-section-title">How It Works</h2>
         </div>
 
         <div className="landing-steps-grid">
-          <div className="landing-step-card">
+          <div className="landing-step-card reveal-on-scroll delay-100">
             <div className="landing-step-number-box">1</div>
             <h3 className="landing-step-title">Create a StudyPod</h3>
             <p className="landing-step-desc">
@@ -264,7 +545,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
             </p>
           </div>
 
-          <div className="landing-step-card">
+          <div className="landing-step-card reveal-on-scroll delay-200">
             <div className="landing-step-number-box">2</div>
             <h3 className="landing-step-title">Sync & Summarize</h3>
             <p className="landing-step-desc">
@@ -272,7 +553,7 @@ function Homepage({ onGetStarted, onStartGuestMode }: HomepageProps) {
             </p>
           </div>
 
-          <div className="landing-step-card">
+          <div className="landing-step-card reveal-on-scroll delay-300">
             <div className="landing-step-number-box">3</div>
             <h3 className="landing-step-title">Connect & Rent</h3>
             <p className="landing-step-desc">
@@ -579,7 +860,7 @@ function App() {
   };
 
   // Chat submit message
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
@@ -590,12 +871,45 @@ function App() {
       timestamp: new Date().toLocaleTimeString()
     };
 
-    setChatMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...chatMessages, userMsg];
+    setChatMessages(updatedMessages);
     setChatInput('');
 
-    // Simulated responsive study bot replies
-    const textLower = userMsg.text.toLowerCase();
-    setTimeout(() => {
+    // Add a typing placeholder message
+    const typingMsgId = `chat-typing-${Date.now()}`;
+    const typingMsg: ChatMessage = {
+      id: typingMsgId,
+      sender: 'StudyPod Bot',
+      text: "...",
+      timestamp: new Date().toLocaleTimeString(),
+      isBot: true
+    };
+    setChatMessages(prev => [...prev, typingMsg]);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg.text,
+          topic: activePod?.topic || 'General Learning',
+          history: updatedMessages.slice(-6).map(m => ({ sender: m.sender, text: m.text }))
+        })
+      });
+
+      const data = await response.json();
+      if (data.success && data.reply) {
+        setChatMessages(prev => prev.map(m => m.id === typingMsgId ? {
+          ...m,
+          text: data.reply,
+          timestamp: new Date().toLocaleTimeString()
+        } : m));
+        return;
+      }
+      throw new Error("Chat API failed");
+    } catch (error) {
+      console.warn("Fallback to simulated chatbot replies:", error);
+      const textLower = userMsg.text.toLowerCase();
       let replyText = "Interesting point! Let's make sure to reference the AI Guide.";
       if (textLower.includes('question') || textLower.includes('?') || textLower.includes('help')) {
         replyText = `I can help you review "${activePod?.topic || 'this topic'}". Try completing the quiz module to solidify details!`;
@@ -605,15 +919,12 @@ function App() {
         replyText = `Hey there! Ready to study ${activePod?.topic || 'some science'}?`;
       }
 
-      const botMsg: ChatMessage = {
-        id: `chat-bot-${Date.now()}`,
-        sender: 'StudyPod Bot',
+      setChatMessages(prev => prev.map(m => m.id === typingMsgId ? {
+        ...m,
         text: replyText,
-        timestamp: new Date().toLocaleTimeString(),
-        isBot: true
-      };
-      setChatMessages(prev => [...prev, botMsg]);
-    }, 1200);
+        timestamp: new Date().toLocaleTimeString()
+      } : m));
+    }
   };
 
   // RentIts link simulator
@@ -721,7 +1032,7 @@ function App() {
         gap: '16px',
         background: 'var(--bg-secondary)'
       }} id="auth-loading-screen">
-        <Cpu className="glow-pulse" size={48} style={{ color: 'var(--accent-coral)' }} />
+        <img src={logoImg} className="glow-pulse" alt="StudySync Logo" style={{ height: '64px', width: '64px', objectFit: 'contain' }} />
         <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Initializing StudySync...</span>
       </div>
     );
@@ -750,7 +1061,10 @@ function App() {
       {/* Sidebar Navigation */}
       <aside className="sidebar" id="sidebar-navigation">
         <div>
-          <div className="sidebar-title">StudySync</div>
+          <div className="sidebar-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src={logoImg} alt="Logo" style={{ height: '24px', width: '24px', objectFit: 'contain' }} />
+            <span>StudySync</span>
+          </div>
 
           <span className="sidebar-section-label">Menu</span>
           <div className="sidebar-menu">
@@ -793,7 +1107,7 @@ function App() {
         {/* Decorative canvas box matching reference image */}
         <div className="sidebar-logo-card">
           <div className="sidebar-logo-box">
-            <Cpu size={24} />
+            <img src={logoImg} alt="Logo" style={{ height: '36px', width: '36px', objectFit: 'contain' }} />
           </div>
           <span className="sidebar-logo-text">StudySync</span>
         </div>
